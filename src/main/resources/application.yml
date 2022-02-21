@@ -3,8 +3,12 @@ spring:
     active: local
 ---
 spring:
-  profiles: local
+  config:
+    activate:
+      on-profile: local
   kafka:
+    template:
+      default-topic: library-events
     producer: 
       bootstrap-servers: localhost:9092, localhost:9093, localhost:9094
       key-serializer: org.apache.kafka.common.serialization.IntegerSerializer
