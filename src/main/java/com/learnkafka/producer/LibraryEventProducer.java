@@ -56,7 +56,7 @@ public class LibraryEventProducer {
         });
     }
 
-    public void sendAsynchronusLibraryEventUsingProducerRecord(LibraryEvent libraryEvent) throws JsonProcessingException {
+    public ListenableFuture<SendResult<Integer, String>> sendAsynchronusLibraryEventUsingProducerRecord(LibraryEvent libraryEvent) throws JsonProcessingException {
 
         Integer key = libraryEvent.getLibraryEventId();
         String value = objectMapper.writeValueAsString(libraryEvent);
@@ -75,8 +75,9 @@ public class LibraryEventProducer {
             public void onFailure(Throwable ex) {
                 handleFailure(key, value, ex);
             }
-
         });
+
+        return listenableFuture;
     }
 
     public SendResult<Integer, String> sendSynchronousLibraryEventUsingTimeout(LibraryEvent libraryEvent) throws JsonProcessingException, ExecutionException, InterruptedException, TimeoutException {

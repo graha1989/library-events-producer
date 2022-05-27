@@ -1,7 +1,11 @@
 package com.learnkafka.controller;
 
+import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import org.junit.jupiter.api.Test;
@@ -10,6 +14,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.kafka.support.SendResult;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,7 +40,7 @@ class LibraryEventsControllerUnitTest {
         Book book = createBook();
         LibraryEvent libraryEvent = createLibraryEvent(book);
         String jsonLibraryEvent = objectMapper.writeValueAsString(libraryEvent);
-        doNothing().when(libraryEventProducer).sendAsynchronusLibraryEvent(libraryEvent);
+        when(libraryEventProducer.sendAsynchronusLibraryEventUsingProducerRecord(libraryEvent)).thenReturn(null);
 
         // when
         mockMvc.perform(post("/v1/asynchronous-libraryevent")
@@ -47,9 +52,16 @@ class LibraryEventsControllerUnitTest {
     }
 
     @Test
-    void testPostLibraryEvent_shouldFailValidationOnBook() throws Exception {
+    void testPostAsynchronousLibraryEvent_shouldFailValidationOnBook() throws Exception {
         // given
-        LibraryEvent libraryEvent = createLibraryEvent(null);
+        String expectedErrorMessage = "book.bookAuthor-must not be blank, book.bookId-must not be null";
+        Book book = Book.builder()
+                .bookId(null)
+                .bookAuthor(null)
+                .bookName("Kafka Using Spring Boot")
+                .build();
+
+        LibraryEvent libraryEvent = createLibraryEvent(book);
         String jsonLibraryEvent = objectMapper.writeValueAsString(libraryEvent);
         doNothing().when(libraryEventProducer).sendAsynchronusLibraryEvent(libraryEvent);
 
@@ -58,7 +70,84 @@ class LibraryEventsControllerUnitTest {
                 .content(jsonLibraryEvent)
                 .contentType(MediaType.APPLICATION_JSON_VALUE))
                 // then
-                .andExpect(status().is4xxClientError());
+                .andExpect(status().is4xxClientError())
+                .andExpect(content().string(expectedErrorMessage));
+
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void testPostSynchronousLibraryEvent_shouldSendLibraryEventToKafkaBroker() throws Exception {
+        // given
+        Book book = createBook();
+        LibraryEvent libraryEvent = createLibraryEvent(book);
+        String jsonLibraryEvent = objectMapper.writeValueAsString(libraryEvent);
+
+        when(libraryEventProducer.sendSynchronousLibraryEventUsingTimeout(libraryEvent)).thenReturn(isA(SendResult.class));
+
+        // when
+        mockMvc.perform(post("/v1/synchronous-libraryevent")
+                .content(jsonLibraryEvent)
+                .contentType(MediaType.APPLICATION_JSON_VALUE))
+                // then
+                .andExpect(status().isCreated());
+
+    }
+
+    @Test
+    void testPostAsynchronusLibraryEventWithProducerRecord_shouldSendLibraryEventToKafkaBroker() throws Exception {
+        // given
+        Book book = createBook();
+        LibraryEvent libraryEvent = createLibraryEvent(book);
+        String jsonLibraryEvent = objectMapper.writeValueAsString(libraryEvent);
+
+        when(libraryEventProducer.sendAsynchronusLibraryEventUsingProducerRecord(libraryEvent)).thenReturn(null);
+
+        // when
+        mockMvc.perform(post("/v1/asynchronous-libraryevent-producerrecord")
+                .content(jsonLibraryEvent)
+                .contentType(MediaType.APPLICATION_JSON_VALUE))
+                // then
+                .andExpect(status().isCreated());
+
+    }
+
+    @Test
+    void testPutAsynchronusLibraryEventWithProducerRecord_shouldUpdateLibraryEventToKafkaBroker() throws Exception {
+        // given
+        Book book = createBook();
+        book.setBookId(456);
+        LibraryEvent libraryEvent = createLibraryEvent(book);
+        libraryEvent.setLibraryEventId(123);
+        String jsonLibraryEvent = objectMapper.writeValueAsString(libraryEvent);
+
+        when(libraryEventProducer.sendAsynchronusLibraryEventUsingProducerRecord(libraryEvent)).thenReturn(null);
+
+        // when
+        mockMvc.perform(put("/v1/asynchronous-libraryevent")
+                .content(jsonLibraryEvent)
+                .contentType(MediaType.APPLICATION_JSON_VALUE))
+                // then
+                .andExpect(status().isCreated());
+
+    }
+
+    @Test
+    void testPutAsynchronusLibraryEventWithProducerRecord_shouldThrowExceptionWhenLibraryEventIdIsNull() throws Exception {
+        // given
+        Book book = createBook();
+        book.setBookId(456);
+        LibraryEvent libraryEvent = createLibraryEvent(book);
+        String jsonLibraryEvent = objectMapper.writeValueAsString(libraryEvent);
+
+        when(libraryEventProducer.sendAsynchronusLibraryEventUsingProducerRecord(libraryEvent)).thenReturn(null);
+
+        // when
+        mockMvc.perform(put("/v1/asynchronous-libraryevent")
+                .content(jsonLibraryEvent)
+                .contentType(MediaType.APPLICATION_JSON_VALUE))
+                // then
+                .andExpect(status().isBadRequest());
 
     }
 

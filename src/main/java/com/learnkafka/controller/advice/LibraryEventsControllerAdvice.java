@@ -5,8 +5,8 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.handler.annotation.support.MethodArgumentNotValidException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
@@ -18,19 +18,15 @@ public class LibraryEventsControllerAdvice {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<?> handleRequestBody(MethodArgumentNotValidException ex) {
-        if (ex.getBindingResult() != null) {
-            List<FieldError> fieldErrors = ex.getBindingResult().getFieldErrors();
-            String errorMessage = fieldErrors.stream()
-                    .map(fe -> fe.getField() + "-" + fe.getDefaultMessage())
-                    .sorted()
-                    .collect(Collectors.joining(", "));
+        List<FieldError> fieldErrors = ex.getBindingResult().getFieldErrors();
+        String errorMessage = fieldErrors.stream()
+                .map(fe -> fe.getField() + "-" + fe.getDefaultMessage())
+                .sorted()
+                .collect(Collectors.joining(", "));
 
-            log.info("errorMessage: {}", errorMessage);
+        log.info("errorMessage: {}", errorMessage);
 
-            return new ResponseEntity<>(errorMessage, HttpStatus.BAD_REQUEST);
-        }
-
-        return null;
+        return new ResponseEntity<>(errorMessage, HttpStatus.BAD_REQUEST);
     }
 
 }
